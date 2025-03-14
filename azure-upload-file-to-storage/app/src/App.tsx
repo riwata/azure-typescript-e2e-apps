@@ -7,6 +7,18 @@ import './App.css';
 
 const API_SERVER = "https://blue-ground-006b3d61e.6.azurestaticapps.net";
 
+// 元のファイル名にタイムスタンプを付加して一意な名前に変換するヘルパー関数
+const generateUniqueFileName = (fileName: string): string => {
+  const timestamp = Date.now();
+  const dotIndex = fileName.lastIndexOf('.');
+  if (dotIndex !== -1) {
+    const base = fileName.substring(0, dotIndex);
+    const ext = fileName.substring(dotIndex);
+    return `${base}_${timestamp}${ext}`;
+  }
+  return `${fileName}_${timestamp}`;
+};
+
 type SasResponse = { url: string };
 
 function App() {
@@ -25,19 +37,28 @@ function App() {
     if (!selectedFiles.length) return;
     setLoading(true);
     for (const file of selectedFiles) {
+      // ユニークなファイル名を生成
+      const uniqueName = generateUniqueFileName(file.name);
       const permission = 'w';
       const timerange = 5;
-      const sasUrlEndpoint = `${API_SERVER}/api/sas?file=${encodeURIComponent(file.name)}&permission=${permission}&container=${containerName}&timerange=${timerange}`;
+      // ユニークな名前を使用して SAS トークン取得のURL を構築
+      const sasUrlEndpoint = `${API_SERVER}/api/sas?file=${encodeURIComponent(uniqueName)}&permission=${permission}&container=${containerName}&timerange=${timerange}`;
       try {
-        const response = await fetch(sasUrlEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }});
+        const response = await fetch(sasUrlEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
         if (!response.ok) throw new Error(`Error: ${response.status}`);
         const data: SasResponse = await response.json();
         const fileArrayBuffer = await convertFileToArrayBuffer(file);
         const blockBlobClient = new BlockBlobClient(data.url);
         await blockBlobClient.uploadData(fileArrayBuffer);
-        setUploadStatuses(prev => [...prev, `${file.name}: 完了`]);
+        setUploadStatuses(prev => [...prev, `${uniqueName}: 完了`]);
       } catch (error) {
-        setUploadStatuses(prev => [...prev, `${file.name}: エラー: ${error instanceof Error ? error.message : String(error)}`]);
+        setUploadStatuses(prev => [
+          ...prev,
+          `${uniqueName}: エラー: ${error instanceof Error ? error.message : String(error)}`
+        ]);
       }
     }
     setLoading(false);
@@ -46,8 +67,12 @@ function App() {
   return (
     <ErrorBoundary>
       <Box m={4}>
-        <Typography variant="h4" gutterBottom>本日の写真アップロード</Typography>
-        <Typography variant="body1" gutterBottom>写真は随時スライドショーに反映します</Typography>
+        <Typography variant="h4" gutterBottom>
+          本日の写真アップロード
+        </Typography>
+        <Typography variant="body1" gutterBottom>
+          写真は随時スライドショーに反映します
+        </Typography>
         <Box my={4}>
           <Button variant="contained" component="label">
             写真の選択
