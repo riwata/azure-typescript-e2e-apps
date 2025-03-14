@@ -11,75 +11,62 @@ type SasResponse = { url: string };
 
 function App() {
   const containerName = `upload`;
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
 
   const handleFileSelection = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    setSelectedFile(file);
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    setSelectedFiles(files);
     setUploadStatus('');
   };
 
-  const handleUploadCombined = () => {
-    if (!selectedFile) return;
+  const handleUploadCombined = async () => {
+    if (!selectedFiles.length) return;
     setLoading(true);
+    let statuses = '';
     const permission = 'w';
     const timerange = 5;
-    const sasUrlEndpoint = `${API_SERVER}/api/sas?file=${encodeURIComponent(selectedFile.name)}&permission=${permission}&container=${containerName}&timerange=${timerange}`;
-
-    fetch(sasUrlEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }})
-      .then(response => {
+    for (const file of selectedFiles) {
+      const sasUrlEndpoint = `${API_SERVER}/api/sas?file=${encodeURIComponent(file.name)}&permission=${permission}&container=${containerName}&timerange=${timerange}`;
+      try {
+        const response = await fetch(sasUrlEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }});
         if (!response.ok) throw new Error(`Error: ${response.status}`);
-        return response.json();
-      })
-      .then((data: SasResponse) => {
-        return convertFileToArrayBuffer(selectedFile).then((fileArrayBuffer) => {
-          const blockBlobClient = new BlockBlobClient(data.url);
-          return blockBlobClient.uploadData(fileArrayBuffer);
-        });
-      })
-      .then(() => {
-        setUploadStatus('Successfully finished upload');
-      })
-      .catch(error => {
-        setUploadStatus(`Failed: ${error instanceof Error ? error.message : String(error)}`);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+        const data: SasResponse = await response.json();
+        const fileArrayBuffer = await convertFileToArrayBuffer(file);
+        const blockBlobClient = new BlockBlobClient(data.url);
+        await blockBlobClient.uploadData(fileArrayBuffer);
+        statuses += `${file.name}: Uploaded successfully.\n`;
+      } catch (error) {
+        statuses += `${file.name}: Failed: ${error instanceof Error ? error.message : String(error)}\n`;
+      }
+    }
+    setUploadStatus(statuses);
+    setLoading(false);
   };
 
   return (
     <ErrorBoundary>
       <Box m={4}>
-        <Typography variant="h4" gutterBottom>
-          Upload file to Azure Storage
-        </Typography>
-        <Typography variant="h5" gutterBottom>
-          with SAS token
-        </Typography>
-        <Typography variant="body1" gutterBottom>
-          <b>Container: {containerName}</b>
-        </Typography>
+        <Typography variant="h4" gutterBottom>Upload file to Azure Storage</Typography>
+        <Typography variant="h5" gutterBottom>with SAS token</Typography>
+        <Typography variant="body1" gutterBottom><b>Container: {containerName}</b></Typography>
         <Box my={4}>
           <Button variant="contained" component="label">
-            Select File
-            <input type="file" hidden onChange={handleFileSelection} />
+            Select Files
+            <input type="file" multiple hidden onChange={handleFileSelection} />
           </Button>
-          {selectedFile && (
+          {selectedFiles.length > 0 && (
             <Box my={2}>
-              <Typography variant="body2">{selectedFile.name}</Typography>
+              {selectedFiles.map(file => (
+                <Typography variant="body2" key={file.name}>{file.name}</Typography>
+              ))}
             </Box>
           )}
         </Box>
-        {selectedFile && (
+        {selectedFiles.length > 0 && (
           <Box my={4} display="flex" alignItems="center">
-            <Button
-              variant="contained"
-              onClick={handleUploadCombined}
-              disabled={loading}
-            >
+            <Button variant="contained" onClick={handleUploadCombined} disabled={loading}>
               Upload
             </Button>
             {loading && (
@@ -91,7 +78,7 @@ function App() {
         )}
         {uploadStatus && (
           <Box my={2}>
-            <Typography variant="body2">{uploadStatus}</Typography>
+            <Typography variant="body2" style={{ whiteSpace: 'pre-wrap' }}>{uploadStatus}</Typography>
           </Box>
         )}
       </Box>
