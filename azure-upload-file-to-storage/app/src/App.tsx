@@ -7,7 +7,8 @@ import { convertFileToArrayBuffer } from './lib/convert-file-to-arraybuffer';
 import './App.css';
 
 // Used only for local development
-const API_SERVER = import.meta.env.VITE_API_SERVER as string;
+//const API_SERVER = import.meta.env.VITE_API_SERVER as string;
+const API_SERVER = "https://blue-ground-006b3d61e.6.azurestaticapps.net";
 console.log("VITE_API_SERVER:", import.meta.env.VITE_API_SERVER);
 
 
