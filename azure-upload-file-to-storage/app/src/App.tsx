@@ -12,22 +12,21 @@ type SasResponse = { url: string };
 function App() {
   const containerName = `upload`;
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [uploadStatus, setUploadStatus] = useState<string>('');
+  const [uploadStatuses, setUploadStatuses] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   const handleFileSelection = (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files ? Array.from(event.target.files) : [];
     setSelectedFiles(files);
-    setUploadStatus('');
+    setUploadStatuses([]);
   };
 
   const handleUploadCombined = async () => {
     if (!selectedFiles.length) return;
     setLoading(true);
-    let statuses = '';
-    const permission = 'w';
-    const timerange = 5;
     for (const file of selectedFiles) {
+      const permission = 'w';
+      const timerange = 5;
       const sasUrlEndpoint = `${API_SERVER}/api/sas?file=${encodeURIComponent(file.name)}&permission=${permission}&container=${containerName}&timerange=${timerange}`;
       try {
         const response = await fetch(sasUrlEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }});
@@ -36,21 +35,26 @@ function App() {
         const fileArrayBuffer = await convertFileToArrayBuffer(file);
         const blockBlobClient = new BlockBlobClient(data.url);
         await blockBlobClient.uploadData(fileArrayBuffer);
-        statuses += `${file.name}: Uploaded successfully.\n`;
+        setUploadStatuses(prev => [...prev, `${file.name}: Uploaded successfully.`]);
       } catch (error) {
-        statuses += `${file.name}: Failed: ${error instanceof Error ? error.message : String(error)}\n`;
+        setUploadStatuses(prev => [...prev, `${file.name}: Failed: ${error instanceof Error ? error.message : String(error)}`]);
       }
     }
-    setUploadStatus(statuses);
     setLoading(false);
   };
 
   return (
     <ErrorBoundary>
       <Box m={4}>
-        <Typography variant="h4" gutterBottom>Upload file to Azure Storage</Typography>
-        <Typography variant="h5" gutterBottom>with SAS token</Typography>
-        <Typography variant="body1" gutterBottom><b>Container: {containerName}</b></Typography>
+        <Typography variant="h4" gutterBottom>
+          Upload file to Azure Storage
+        </Typography>
+        <Typography variant="h5" gutterBottom>
+          with SAS token
+        </Typography>
+        <Typography variant="body1" gutterBottom>
+          <b>Container: {containerName}</b>
+        </Typography>
         <Box my={4}>
           <Button variant="contained" component="label">
             Select Files
@@ -76,9 +80,13 @@ function App() {
             )}
           </Box>
         )}
-        {uploadStatus && (
+        {uploadStatuses.length > 0 && (
           <Box my={2}>
-            <Typography variant="body2" style={{ whiteSpace: 'pre-wrap' }}>{uploadStatus}</Typography>
+            {uploadStatuses.map((status, index) => (
+              <Typography variant="body2" key={index} style={{ whiteSpace: 'pre-wrap' }}>
+                {status}
+              </Typography>
+            ))}
           </Box>
         )}
       </Box>
