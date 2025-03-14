@@ -8,6 +8,8 @@ import './App.css';
 
 // Used only for local development
 const API_SERVER = import.meta.env.VITE_API_SERVER as string;
+console.log("VITE_API_SERVER:", import.meta.env.VITE_API_SERVER);
+
 
 type SasResponse = {
   url: string;
