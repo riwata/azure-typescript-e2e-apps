@@ -35,9 +35,9 @@ function App() {
         const fileArrayBuffer = await convertFileToArrayBuffer(file);
         const blockBlobClient = new BlockBlobClient(data.url);
         await blockBlobClient.uploadData(fileArrayBuffer);
-        setUploadStatuses(prev => [...prev, `${file.name}: 完了`]);
+        setUploadStatuses(prev => [...prev, `${file.name}: Uploaded successfully.`]);
       } catch (error) {
-        setUploadStatuses(prev => [...prev, `${file.name}: エラー: ${error instanceof Error ? error.message : String(error)}`]);
+        setUploadStatuses(prev => [...prev, `${file.name}: Failed: ${error instanceof Error ? error.message : String(error)}`]);
       }
     }
     setLoading(false);
@@ -46,15 +46,12 @@ function App() {
   return (
     <ErrorBoundary>
       <Box m={4}>
-        <Typography variant="h4" gutterBottom>
-          本日の写真アップロード
-        </Typography>
-        <Typography variant="body1" gutterBottom>
-          写真は随時スライドショーに反映します
-        </Typography>
+        <Typography variant="h4" gutterBottom>Upload file to Azure Storage</Typography>
+        <Typography variant="h5" gutterBottom>with SAS token</Typography>
+        <Typography variant="body1" gutterBottom><b>Container: {containerName}</b></Typography>
         <Box my={4}>
           <Button variant="contained" component="label">
-            写真の選択
+            Select Files
             <input type="file" multiple hidden onChange={handleFileSelection} />
           </Button>
           {selectedFiles.length > 0 && (
@@ -68,7 +65,7 @@ function App() {
         {selectedFiles.length > 0 && (
           <Box my={4} display="flex" alignItems="center">
             <Button variant="contained" onClick={handleUploadCombined} disabled={loading}>
-              アップロード
+              Upload
             </Button>
             {loading && (
               <Box ml={2}>
